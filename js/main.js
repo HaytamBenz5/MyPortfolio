@@ -1,108 +1,123 @@
-(function ($) {
-    "use strict";
-
-    $(window).scroll(function () {
-        if ($(this).scrollTop() > 200) {
-            $('.navbar').fadeIn('slow').css('display', 'flex');
-        } else {
-            $('.navbar').fadeOut('slow').css('display', 'none');
-        }
-    });
-
-    $(".navbar-nav a").on('click', function (event) {
-        if (this.hash !== "") {
-            event.preventDefault();
-            $('html, body').animate({
-                scrollTop: $(this.hash).offset().top - 45
-            }, 1500, 'easeInOutExpo');
-
-            if ($(this).parents('.navbar-nav').length) {
-                $('.navbar-nav .active').removeClass('active');
-                $(this).addClass('active');
-            }
-        }
-    });
-
-})(jQuery);
-
-
-document.addEventListener('DOMContentLoaded', function() {
-    const typedTextElement = document.querySelector('.typed-text-output');
-    const typedText = document.querySelector('.typed-text').textContent.split(', ');
-    let textIndex = 0;
-    let charIndex = 0;
-    let currentText = '';
-    let isDeleting = false;
-
-    function type() {
-        if (isDeleting) {
-            currentText = typedText[textIndex].substring(0, charIndex - 1);
-            charIndex--;
-        } else {
-            currentText = typedText[textIndex].substring(0, charIndex + 1);
-            charIndex++;
-        }
-
-        typedTextElement.textContent = currentText;
-
-        let typingSpeed = isDeleting ? 50 : 100;
-
-        if (!isDeleting && charIndex === typedText[textIndex].length) {
-            typingSpeed = 1500;
-            isDeleting = true;
-        } else if (isDeleting && charIndex === 0) {
-            isDeleting = false;
-            textIndex = (textIndex + 1) % typedText.length;
-            typingSpeed = 500;
-        }
-
-        setTimeout(type, typingSpeed);
-    }
-
-    type();
+﻿'use strict';
+const menuToggle = document.querySelector('.menu-toggle');
+const navigation = document.getElementById('navigation');
+function closeMenu() {
+  navigation.classList.remove('is-open');
+  menuToggle.setAttribute('aria-expanded', 'false');
+  menuToggle.setAttribute('aria-label', 'Ouvrir le menu');
+}
+menuToggle.addEventListener('click', () => {
+  const open = menuToggle.getAttribute('aria-expanded') !== 'true';
+  menuToggle.setAttribute('aria-expanded', String(open));
+  menuToggle.setAttribute('aria-label', open ? 'Fermer le menu' : 'Ouvrir le menu');
+  navigation.classList.toggle('is-open', open);
 });
-
-$(document).ready(function () {
-    $('a.nav-item.nav-link').on('click', function (event) {
-        if (this.hash !== "") {
-            event.preventDefault();
-            const hash = this.hash;
-            $('html, body').animate({
-                scrollTop: $(hash).offset().top - 50
-            }, 800);
-            $('.nav-item.nav-link').removeClass('active');
-            $(this).addClass('active');
-        }
-    });
+navigation.querySelectorAll('a').forEach(link => link.addEventListener('click', closeMenu));
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && navigation.classList.contains('is-open')) {
+    closeMenu();
+    menuToggle.focus();
+  }
 });
-
-document.addEventListener('scroll', function() {
-    const scrollButton = document.querySelector('.scroll-to-bottom');
-    const aboutMeDiv = document.getElementById('aboutme');
-    const rect = aboutMeDiv.getBoundingClientRect();
-
-    if (rect.bottom < 440) {
-        scrollButton.style.display = 'none'; 
-    } else {
-        scrollButton.style.display = 'block';
-    }
+document.addEventListener('click', event => {
+  if (!event.target.closest('.site-header')) closeMenu();
 });
-
-(function() {
-    emailjs.init("CuelrRDlPdPlZjLnK");
-})();
-
-const messagesuccess = document.getElementById('msgSuccess');
-
-document.getElementById('contact-form').addEventListener('submit', function(event) {
-    event.preventDefault(); 
-
-    emailjs.sendForm('service_206zija', 'template_lczgedx', this) 
-        .then(function() {
-            messagesuccess.style.display = 'block';
-            document.getElementById('contact-form').reset(); 
-        }, function(error) {
-            console.error('Error:', error);
+window.matchMedia('(min-width: 761px)').addEventListener('change', event => {
+  if (event.matches) closeMenu();
+});
+const filters = document.querySelectorAll('.filter');
+const projects = document.querySelectorAll('.project');
+filters.forEach(button => button.addEventListener('click', () => {
+  filters.forEach(filter => {
+    const selected = filter === button;
+    filter.classList.toggle('active', selected);
+    filter.setAttribute('aria-pressed', String(selected));
+  });
+  let count = 0;
+  projects.forEach(project => {
+    const visible = button.dataset.filter === 'all' || project.dataset.category === button.dataset.filter;
+    project.hidden = !visible;
+    if (visible) count++;
+  });
+  document.getElementById('filter-status').textContent = `${count} projet${count > 1 ? 's' : ''} affiché${count > 1 ? 's' : ''}.`;
+}));
+if ('IntersectionObserver' in window) {
+  const navLinks = [...navigation.querySelectorAll('a[href^="#"]')];
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(link => {
+          if (link.hash === `#${entry.target.id}`) link.setAttribute('aria-current', 'location');
+          else link.removeAttribute('aria-current');
         });
+      }
+    });
+  }, { rootMargin: '-15% 0px -65% 0px', threshold: 0 });
+  document.querySelectorAll('main section[id]').forEach(section => observer.observe(section));
+}
+document.getElementById('year').textContent = new Date().getFullYear();
+const form = document.getElementById('contact-form');
+const formStatus = document.getElementById('form-status');
+let sending = false;
+form?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (sending || !form.reportValidity()) return;
+  if (!window.emailjs) {
+    formStatus.dataset.state = 'error';
+    formStatus.textContent = 'Le service d’envoi est indisponible. Vous pouvez m’écrire directement à Benzinanehaytam1@gmail.com.';
+    return;
+  }
+  const submit = form.querySelector('button[type="submit"]');
+  sending = true;
+  submit.disabled = true;
+  formStatus.dataset.state = 'pending';
+  formStatus.textContent = 'Envoi en cours…';
+  try {
+    await window.emailjs.sendForm('service_206zija', 'template_lczgedx', form, { publicKey: 'CuelrRDlPdPlZjLnK' });
+    formStatus.dataset.state = 'success';
+    formStatus.textContent = 'Merci ! Votre message a bien été envoyé. À très bientôt.';
+    form.reset();
+  } catch {
+    formStatus.dataset.state = 'error';
+    formStatus.textContent = 'L’envoi a échoué. Réessayez ou écrivez-moi directement à Benzinanehaytam1@gmail.com.';
+  } finally {
+    sending = false;
+    submit.disabled = false;
+  }
 });
-console.log('%c Ehmm you are checking my code, i got you', 'color: white; font-size: 30px; font-weight: bold; background-color: blue; padding: 5px; border-radius: 3px;');
+
+// Le lecteur apparaît dès qu'une source est renseignée dans le HTML.
+const presentationVideo = document.getElementById('presentation-video');
+const videoPlaceholder = document.getElementById('video-placeholder');
+const videoStatus = document.getElementById('video-status');
+if (presentationVideo && presentationVideo.querySelector('source[src]')) {
+  presentationVideo.hidden = false;
+  videoPlaceholder.hidden = true;
+  presentationVideo.addEventListener('error', () => {
+    presentationVideo.hidden = true;
+    videoPlaceholder.hidden = false;
+    videoStatus.textContent = 'La vidéo est momentanément indisponible. Vous pouvez me contacter pour en savoir plus sur mon parcours.';
+  });
+  presentationVideo.querySelectorAll('source').forEach(source => {
+    source.addEventListener('error', () => {
+      presentationVideo.hidden = true;
+      videoPlaceholder.hidden = false;
+      videoStatus.textContent = 'La vidéo est momentanément indisponible. Vous pouvez me contacter pour en savoir plus sur mon parcours.';
+    });
+  });
+  presentationVideo.load();
+}
+
+
+// Afficher la capture du projet dès que le fichier est disponible.
+document.querySelectorAll('img[data-project-image]').forEach(img => {
+  img.addEventListener('load', () => {
+    img.hidden = false;
+    const placeholder = img.parentElement.querySelector('.project-image-pending');
+    if (placeholder) placeholder.hidden = true;
+  });
+  img.addEventListener('error', () => {
+    img.hidden = true;
+  });
+  img.src = img.dataset.projectImage;
+});
